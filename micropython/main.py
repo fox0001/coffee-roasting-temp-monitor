@@ -1,5 +1,5 @@
 '''
-Project: Coffee Roast Temperature Record
+Project: Coffee Roasting Temperature Record
 Version: v1.0
 
 Coffee roast curve, CRC, 咖啡烘焙曲线
