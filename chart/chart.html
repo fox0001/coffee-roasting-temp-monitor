@@ -1,0 +1,126 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>Chart of Coffee Roasting Temperature Curve</title>
+<meta charset="UTF-8">
+<!--<meta name="renderer" content="webkit">-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+<style>
+</style>
+<script src="https://unpkg.com/frappe-charts@1.6.1/dist/frappe-charts.min.umd.js"></script>
+</head>
+
+<body>
+<div>
+	Choose CSV File: <input id="csvInput" type="file" style="width:200px"/>
+</div>
+<div id="chart"></div>
+<script>
+let csvName = ""
+let chart = null
+const rorZero = 120
+const chartData = {
+	labels:[]
+	,datasets:[]
+	,yMarkers:[{label: "RoR Zero", value: rorZero, options: {labelPos: 'left'}}]
+}
+
+let $ = (qStr, isList, $ele) => ($ele===undefined ? document : $ele)[isList?"querySelectorAll":"querySelector"](qStr);
+let $$ = (qStr) => $(qStr, true);
+[Document,Element].forEach(cls => {
+	cls.prototype.$ = function(qStr, isList){return $(qStr, isList, this)};
+	cls.prototype.$$ = function(qStr){return $(qStr, true, this)};
+})
+/*
+let getParams = function(){
+	let params = {}
+		,searchStr = document.location.search.substring(1)
+		;
+	(searchStr.length > 0) && searchStr.split("&").forEach(pStr => {kv=pStr.split("="); params[kv[0]]=kv[1];});
+	return params;
+}
+*/
+let getMinSec=(sec)=>{
+	let d = new Date(sec * 1000)
+	return [d.getUTCMinutes(), d.getUTCSeconds()<10 ? ":0" : ":", d.getUTCSeconds()].join("")
+}
+let readCsvFile=(event)=>{
+	csvStr = event.target.result.trim()
+	if(csvStr.length<=0){
+		alert("The CSV file is empty.")
+	}
+	let labels = []
+		,datasetRc = {"name":"roast curve", chartType:"line", values:[]}
+		,datasetRor = {"name":"Rate of Rise (RoR)", chartType:"line", values:[]}
+		,datasetFirstCrack = {"name":"First Crack", chartType:"bar", values:[]}
+		;
+	csvStr.split(/[\r\n]+/).forEach(rowStr => {
+		let rowArr = rowStr.split(",")
+			,temp = parseInt(rowArr[1])
+			;
+		labels.push(getMinSec(rowArr[0]))
+		datasetRc.values.push(temp)
+		datasetFirstCrack.values.push(rowArr[2] == 'first-crack' ? temp : 0)
+		/*
+		mark = rowArr[2].replace(/^['"]+(.+?)['"]+$/, "$1")
+		if(mark=="first_crack"){
+			xMarkers.push({label: "first_crack", value: rowArr[0], options: {labelPos: 'top'}})
+			console.log("xMarker: " + rowArr[0])
+		}
+		*/
+	})
+	for(i=0, len=datasetRc.values.length; i<len; i++){
+		datasetRor.values.push(i>=30 ? datasetRc.values[i] - datasetRc.values[i-30] + rorZero : rorZero)
+	}
+	
+	chartData.labels = labels
+	chartData.datasets = [datasetRc, datasetRor, datasetFirstCrack]
+	if(chart != null){
+		chart.update(chartData)
+		return
+	}
+	let tooltipIndex = -1
+	chart = new frappe.Chart("#chart", {
+		title: "Coffee Roasting Temperature Curve"
+		,data: chartData
+		,type: 'axis-mixed' /* 'axis-mixed', 'bar', 'line', 'scatter', 'pie', 'percentage' */
+		,tooltipOptions: {
+			//formatTooltipX: d => d
+			//formatTooltipY: d => (d - rorPlus) + " °C"
+			//formatTooltipY: (d, i) => 
+			formatTooltipY: (d) => {tooltipIndex++; return [d+" °C", (d-rorZero)+" °C", d>0?d+" °C":"-"][tooltipIndex%3];}
+		}
+		,lineOptions: {
+			regionFill: 0 /* default: 0 */
+			//,dotSize: 4 /* default: 4 */
+			,hideDots: 1 /* default: 0 */
+			//,hideLine: 1 /* default: 0 */
+			//,heatline: 1 /* default: 0 */
+			//,spline: 1 /* default: 0 */
+		}
+		,axisOptions: {
+			xIsSeries: true /* default: false */
+			,xAxisMode: 'tick' /* 'span','tick' */
+			,xAxisLabel: 'Sentiments'
+			,yAxisMode: "span" /* 'span','tick' */
+		}
+		,height: 500
+		,colors: ['#B40404','#5858FA','#585858']
+	})
+};
+
+$("#csvInput").addEventListener('change', (event)=>{
+	let $self = event.target
+	if ($self.files.length === 0) {
+		alert('No file selected.');
+		return;
+	}
+	csvName = $self.files[0].name
+	const reader = new FileReader();
+	reader.readAsText($self.files[0], "utf8");
+	reader.addEventListener("load", readCsvFile);
+	//reader.onload = readCsvFile;
+});
+</script>
+</body>
+</html>
